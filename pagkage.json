@@ -1,7 +1,6 @@
 {
-  "name": "supawork-api",
+  "name": "supawork-backend",
   "version": "1.0.0",
-  "type": "module",
   "main": "api/index.ts",
   "scripts": {
     "dev": "ts-node api/index.ts",

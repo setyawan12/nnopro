@@ -50,5 +50,5 @@ export default app;
 
 // Jalankan lokal
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(3000, () => console.log('Running on http://localhost:3000'));
+    export default app;
 }

@@ -1,4 +1,5 @@
 import { PROXIES, CONFIG } from '../constants';
+import crypto from 'node:crypto';
 
 export class SupaworkService {
     private iid: string = crypto.randomUUID();

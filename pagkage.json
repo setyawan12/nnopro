@@ -1,10 +1,7 @@
 {
   "name": "supawork-backend",
   "version": "1.0.0",
-  "main": "api/index.js",
-  "scripts": {
-    "build": "tsc"
-  },
+  "main": "api/index.ts",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -19,5 +16,8 @@
     "@types/node": "^20.11.16",
     "@types/uuid": "^9.0.8",
     "typescript": "^5.3.3"
+  },
+  "scripts": {
+    "build": "tsc"
   }
 }

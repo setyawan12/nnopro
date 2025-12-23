@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import * as crypto from 'crypto';
 import { PROXIES, CONFIG } from '../constants';
 
 export class SupaworkService {
@@ -21,7 +21,7 @@ export class SupaworkService {
                 }
             } catch (e) { continue; }
         }
-        throw new Error("Proxy exhausted atau koneksi terputus.");
+        throw new Error("Koneksi gagal setelah mencoba semua proxy.");
     }
 
     public async generate(
@@ -30,33 +30,34 @@ export class SupaworkService {
         aspectRatio: string,
         onProgress: (msg: string, step: number) => void
     ) {
-        // Step 1: Turnstile
-        onProgress("Bypass Turnstile Security", 1);
+        // Step 1: Turnstile Bypass
+        onProgress("Bypass Turnstile Keamanan", 1);
         const bRes = await this.resilientRequest(`https://anabot.my.id/api/tools/bypass?url=${encodeURIComponent('https://supawork.ai/id/nano-banana')}&siteKey=0x4AAAAAACBjrLhJyEE6mq1c&type=turnstile-min&apikey=${CONFIG.anabotKey}`);
         const tt = bRes.data?.result?.token;
-        if (!tt) throw new Error("Captcha gagal.");
+        if (!tt) throw new Error("Gagal melewati Turnstile (Captcha).");
 
-        // Step 2: Challenge
-        onProgress("Handshake Session", 2);
+        // Step 2: Challenge Session
+        onProgress("Inisialisasi Sesi", 2);
         const ctRes = await this.resilientRequest('https://supawork.ai/supawork/headshot/api/sys/challenge/token', 'GET', null, {
             'X-Auth-Challenge': tt, 'X-Identity-Id': this.iid
         });
         const ct = ctRes.data?.challenge_token;
+        if (!ct) throw new Error("Gagal mendapatkan Challenge Token.");
 
-        // Step 3: Virtual Email
-        onProgress("Mendaftarkan Akun Anonim", 3);
+        // Step 3: Temp Email Registration
+        onProgress("Alokasi Email Anonim", 3);
         const edata = await this.resilientRequest('https://api.internal.temp-mail.io/api/v3/email/new', 'POST', { min_name_length: 10 });
         const email = edata.email;
-        const pass = "UserAI!12345";
+        const pass = "SetyawanAI123!";
 
         const regRes = await this.resilientRequest('https://supawork.ai/supawork/api/user/register', 'POST', {
             email, password: pass, register_code: '', credential: ''
         }, { 'X-Auth-Challenge': ct, 'X-Identity-Id': this.iid });
 
-        // Step 4: OTP Scanning
+        // Step 4: OTP Check Loop
         let code = "";
         for (let i = 0; i < 15; i++) {
-            onProgress(`Scanning OTP (${i+1}/15)`, 4);
+            onProgress(`Mencari OTP (${i+1}/15)`, 4);
             await new Promise(r => setTimeout(r, 4500));
             const msgs = await this.resilientRequest(`https://api.internal.temp-mail.io/api/v3/email/${email}/messages`);
             if (msgs?.[0]) {
@@ -75,33 +76,48 @@ export class SupaworkService {
         const ldata = await this.resilientRequest('https://supawork.ai/supawork/api/user/login/password', 'POST', { email, password: pass }, { 'X-Auth-Challenge': ct, 'X-Identity-Id': this.iid });
         const token = ldata.data?.token;
 
-        // Step 6: OSS Upload
-        onProgress("Mengunggah Gambar", 6);
+        // Step 6: OSS Token & Upload
+        onProgress("Mengunggah Aset Gambar", 6);
         const ossRes = await this.resilientRequest(`https://supawork.ai/supawork/headshot/api/sys/oss/token?f_suffix=png&get_num=1&unsafe=1`, 'GET', null, {
             'Authorization': token, 'X-Identity-Id': this.iid
         });
         const oss = ossRes.data[0];
-        await fetch(oss.put, { method: 'PUT', body: imageBuffer, headers: { 'Content-Type': 'image/png' } });
+        
+        // Upload Buffer Image ke OSS
+        await fetch(oss.put, { 
+            method: 'PUT', 
+            body: imageBuffer, 
+            headers: { 'Content-Type': 'image/png' } 
+        });
 
-        // Step 7: Generation
-        onProgress("Inisialisasi AI Nano Banana", 7);
+        // Step 7: Kick Generation
+        onProgress("Menjalankan Nano Banana Engine", 7);
         await this.resilientRequest('https://supawork.ai/supawork/headshot/api/media/image/generator', 'POST', {
-            identity_id: this.iid, aigc_app_code: 'image_to_image_generator', model_code: 'google_nano_banana',
-            custom_prompt: prompt, aspect_ratio: aspectRatio, image_urls: [oss.get], currency_type: 'gold'
+            identity_id: this.iid,
+            aigc_app_code: 'image_to_image_generator',
+            model_code: 'google_nano_banana',
+            custom_prompt: prompt,
+            aspect_ratio: aspectRatio,
+            image_urls: [oss.get],
+            currency_type: 'gold'
         }, { 'Authorization': token, 'X-Auth-Challenge': ct, 'X-Identity-Id': this.iid });
 
-        // Step 8: Polling
+        // Step 8: Polling Result
         for (let i = 0; i < 40; i++) {
             onProgress(`AI Sedang Menggambar (${i+1}/40)`, 8);
             await new Promise(r => setTimeout(r, 5000));
             const listRes = await this.resilientRequest(`https://supawork.ai/supawork/headshot/api/media/aigc/result/list/v1?page_no=1&page_size=10&identity_id=${this.iid}`, 'GET', null, {
                 'Authorization': token, 'X-Identity-Id': this.iid
             });
+            
             if (listRes?.data?.list?.[0]) {
                 const item = listRes.data.list[0];
-                if (item.status === 1 && item.list[0]?.url[0]) return { imageUrl: item.list[0].url[0] };
+                if (item.status === 1 && item.list[0]?.url[0]) {
+                    return { imageUrl: item.list[0].url[0] };
+                }
+                if (item.status === 2) throw new Error("Gagal disintesis oleh server AI.");
             }
         }
-        throw new Error("Render timeout.");
+        throw new Error("Waktu render habis (Timeout).");
     }
 }

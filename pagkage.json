@@ -1,6 +1,7 @@
 {
-  "name": "supawork-api-modern",
+  "name": "supawork-api",
   "version": "1.0.0",
+  "type": "module",
   "main": "api/index.ts",
   "scripts": {
     "dev": "ts-node api/index.ts",

@@ -1,6 +1,5 @@
 export const CONFIG = {
-    // Ambil dari Environment Variable Vercel
-    anabotKey: process.env.ANABOT_KEY || '' 
+    anabotKey: process.env.ANABOT_KEY || ''
 };
 
 export const PROXIES = [
